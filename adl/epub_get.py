@@ -87,8 +87,10 @@ def get_ebook(filename):
     logging.info("Writing {} ...".format(epub_filename))
     with open(epub_filename, "wb") as epub_file:
       epub_file.write(patched_epub)
+      
 
     logging.info("Successfully downloaded file {}".format(epub_filename))
+    return epub_filename
   except:
     logging.exception("Error when downloading book !")
 
