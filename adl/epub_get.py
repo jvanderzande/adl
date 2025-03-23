@@ -1,7 +1,10 @@
 import logging
+import os
 import requests
 import base64
 from lxml import etree
+
+from .exceptions import GetEbookException
 
 from .xml_tools import ADEPT_NS, NSMAP, add_subelement, get_error
 from . import utils
@@ -48,13 +51,12 @@ def fulfill(acsm_content, a, operator):
   ff = Fulfillment(acsm_content, a, operator)
   return ff.call()
 
-def get_ebook(filename):
+def get_ebook(filename, output_dirpath=None):
   logging.info("Opening {} ...".format(filename))
 
   a = data.get_current_account()
   if a is None:
-    logging.error("Please log in with a user and select it first")
-    return
+    raise GetEbookException(filename, "Please log in with a user and select it first")
 
   try:
     # The ACSM file contains a "fulfillment URL" that we must query
@@ -62,13 +64,12 @@ def get_ebook(filename):
     operator, acsm_content = parse_acsm(filename)
 
     if not log_in(data.config, a, operator):
-      logging.info("Failed to init license")
-      return
+      raise GetEbookException(filename, "Failed to init license")
 
     title, ebook_url, license_token = fulfill(acsm_content, a, operator)
 
     if ebook_url is None:
-      raise Exception("Fulfillment error")
+      raise GetEbookException(filename, "Fulfillment error")
 
     # Get epub URL and download it
     logging.info("Downloading {} from {} ...".format(title, ebook_url))
@@ -82,15 +83,15 @@ def get_ebook(filename):
     patched_epub = patch_epub.patch(epub, rights_xml)
 
     # Write file to disc
-    # TODO: configurable output ?
     epub_filename = "{0}.epub".format(title)
+    epub_filepath = os.path.join(output_dirpath or os.getcwd(), epub_filename)
     logging.info("Writing {} ...".format(epub_filename))
-    with open(epub_filename, "wb") as epub_file:
+    with open(epub_filepath, "wb") as epub_file:
       epub_file.write(patched_epub)
       
 
     logging.info("Successfully downloaded file {}".format(epub_filename))
-    return epub_filename
+    return epub_filepath
   except:
     logging.exception("Error when downloading book !")
 
