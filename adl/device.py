@@ -1,23 +1,23 @@
 import logging
-
 from lxml import etree
-
 from .xml_tools import ADEPT_NS, NSMAP, add_subelement
 from .api_call import Activate
 from .bom import Device
 from . import data
 
+logger = logging.getLogger(__name__)
+
 ###### Register devices
 def device_register(mountpoint):
-  logging.info("Looking for ADEPT support on {}".format(mountpoint))
+  logger.info("Looking for ADEPT support on {}".format(mountpoint))
   d = read_device_file(mountpoint)
   if d is None:
-    logging.error("This device does not seem to support ADEPT DRM")
+    logger.error("This device does not seem to support ADEPT DRM")
     return
 
   current_account = data.get_current_account()
   if current_account is None:
-    logging.error("Please log in with a user and select it first")
+    logger.error("Please log in with a user and select it first")
 
   # Check it is not already in our db
   devices = current_account.devices
@@ -35,24 +35,24 @@ def device_register(mountpoint):
     if a is not None:
       if a.get_private_key() == plk:
         # Activated by a known user
-        logging.info("Device is already activated for user {} but is not known by adl, registering it".format(username))
+        logger.info("Device is already activated for user {} but is not known by adl, registering it".format(username))
         d.device_id = device_id
         data.add_device(a.urn, d)
         return
 
-    logging.error("Device is already activated for an unknown user. Doing nothing or all books on the device will become unreadable")
+    logger.error("Device is already activated for an unknown user. Doing nothing or all books on the device will become unreadable")
     return 
 
   # Activate device
-  logging.info("Activating device ...")
+  logger.info("Activating device ...")
   activation_token = activate(current_account, d)
   if activation_token is None:
-    logging.error("Activation failed")
+    logger.error("Activation failed")
     return
 
   # Store file in the device
   activation_file_content = build_activation_file(current_account, activation_token, data.config)
-  logging.debug(activation_file_content)
+  logger.debug(activation_file_content)
 
   if write_activation_file(mountpoint, activation_file_content):
     # Store info in db
@@ -94,10 +94,10 @@ def read_activation_file(mountpoint):
       at = tree_root.find("{http://ns.adobe.com/adept}activationToken")
       device_id = at.find("{http://ns.adobe.com/adept}device").text
 
-      logging.info("This device is already activated for user {}".format(username))
+      logger.info("This device is already activated for user {}".format(username))
       return username, plk, device_id
   except Exception:
-    logging.info("Activation data not found")
+    logger.info("Activation data not found")
 
   return None, None, None
 
