@@ -1,10 +1,13 @@
 import logging
 import requests
 import base64
+
 from lxml import etree
 
 from .xml_tools import ADEPT_NS, NSMAP, sign_xml, add_subelement, get_error
 from . import utils
+
+logger = logging.getLogger(__name__)
 
 class APICall:
   def __init__(self):
@@ -20,7 +23,7 @@ class APICall:
 
   def send(self, url, data_str):
     headers = {'Content-type': 'application/vnd.adobe.adept+xml', 'charset':'utf-8'}
-    logging.debug(data_str)
+    logger.debug(data_str)
 
     try:
       if self.method == "post":
@@ -33,7 +36,7 @@ class APICall:
       logging.exception("Error when targeting {}".format(url))
       return None
 
-    logging.debug(reply)
+    logger.debug(reply)
     return reply
 
 ###################################
@@ -122,7 +125,7 @@ class Fulfillment(APICall):
 
     if 'error' in ff_reply:
       error = get_error(ff_reply)
-      logging.error(error)
+      logger.error(error)
       return None, None, None
 
     tree_root = etree.fromstring(ff_reply)
@@ -242,7 +245,7 @@ class SignInDirect(APICall):
 
     if 'error' in reply:
       error = get_error(reply)
-      logging.error(error)
+      logger.error(error)
       return False, None, None, None, None
 
     tree_root = etree.fromstring(reply)

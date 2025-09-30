@@ -10,6 +10,8 @@ from . import device
 from .api_call import ActivationInit, AuthenticationInit, SignInDirect
 from . import data
 
+logger = logging.getLogger(__name__)
+
 def login(user, password):
   acc = Account()
 
@@ -23,7 +25,7 @@ def login(user, password):
     data.store_config(config)
 
   if not sign_in(data, acc, user, password):
-    logging.error('Sign in error')
+    logger.error('Sign in error')
     return
 
   # Activate this computer

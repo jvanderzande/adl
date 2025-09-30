@@ -1,7 +1,10 @@
 import logging
+import os
 import requests
 import base64
 from lxml import etree
+
+from .exceptions import GetEbookException
 
 from .xml_tools import ADEPT_NS, NSMAP, add_subelement, get_error
 from . import utils
@@ -9,6 +12,8 @@ from . import patch_epub
 from . import account
 from . import data
 from .api_call import FFAuth, InitLicense, Fulfillment
+
+logger = logging.getLogger(__name__)
 
 def parse_acsm(acsm_filename):
   fftoken = etree.parse(acsm_filename)
@@ -27,7 +32,7 @@ def log_in(config, acc, operator):
     result = init_license.call()
     return result
   else:
-    logging.info(get_error(result))
+    logger.info(get_error(result))
     return False
 
 def generate_rights_xml(license_token):
@@ -44,17 +49,16 @@ def generate_rights_xml(license_token):
   return etree.tostring(rights, doctype='<?xml version="1.0"?>')
 
 def fulfill(acsm_content, a, operator):
-  logging.info("Sending fullfilment request")
+  logger.info("Sending fullfilment request")
   ff = Fulfillment(acsm_content, a, operator)
   return ff.call()
 
-def get_ebook(filename):
-  logging.info("Opening {} ...".format(filename))
+def get_ebook(filename, output_dirpath=None):
+  logger.info("Opening {} ...".format(filename))
 
   a = data.get_current_account()
   if a is None:
-    logging.error("Please log in with a user and select it first")
-    return
+    raise GetEbookException(filename, "Please log in with a user and select it first")
 
   try:
     # The ACSM file contains a "fulfillment URL" that we must query
@@ -62,33 +66,34 @@ def get_ebook(filename):
     operator, acsm_content = parse_acsm(filename)
 
     if not log_in(data.config, a, operator):
-      logging.info("Failed to init license")
-      return
+      raise GetEbookException(filename, "Failed to init license")
 
     title, ebook_url, license_token = fulfill(acsm_content, a, operator)
 
     if ebook_url is None:
-      raise Exception("Fulfillment error")
+      raise GetEbookException(filename, "Fulfillment error")
 
     # Get epub URL and download it
-    logging.info("Downloading {} from {} ...".format(title, ebook_url))
+    logger.info("Downloading {} from {} ...".format(title, ebook_url))
     r = requests.get(ebook_url)
     r.raise_for_status()
     epub = r.content
 
     # A file containing the license token must be added to the epub
-    logging.info("Patching epub ...")
+    logger.info("Patching epub ...")
     rights_xml = generate_rights_xml(license_token)    
     patched_epub = patch_epub.patch(epub, rights_xml)
 
     # Write file to disc
-    # TODO: configurable output ?
     epub_filename = "{0}.epub".format(title)
-    logging.info("Writing {} ...".format(epub_filename))
-    with open(epub_filename, "wb") as epub_file:
+    epub_filepath = os.path.join(output_dirpath or os.getcwd(), epub_filename)
+    logger.info("Writing {} ...".format(epub_filename))
+    with open(epub_filepath, "wb") as epub_file:
       epub_file.write(patched_epub)
+      
 
-    logging.info("Successfully downloaded file {}".format(epub_filename))
+    logger.info("Successfully downloaded file {}".format(epub_filename))
+    return epub_filepath
   except:
     logging.exception("Error when downloading book !")
 

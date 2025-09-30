@@ -1,8 +1,9 @@
 import sqlite3
 import os
 import logging
-
 from .bom import Account, Config, Device
+
+logger = logging.getLogger(__name__)
 
 class DBData:
   def __init__(self):
@@ -17,10 +18,10 @@ class DBData:
       if os.path.isdir(self.db_path):
           return True
       else:
-        logging.error("{} is not a directory, please remove it and try again")
+        logger.error("{} is not a directory, please remove it and try again")
         return False
     else:
-      logging.info("~/.adl/ does not exist: creating it")
+      logger.info("~/.adl/ does not exist: creating it")
       os.mkdir(self.db_path)
 
     return True
@@ -39,7 +40,7 @@ class DBData:
 
     try:
       if self.find_account_by_urn(account_urn) is None:
-        logging.error("Unknown user")
+        logger.error("Unknown user")
       else:
         self.config.current_user = account_urn
         self.db.update_current_user(account_urn)
@@ -53,7 +54,7 @@ class DBData:
     
     try:
       if self.find_account_by_urn(a.urn) is not None:
-        logging.error("Account already exists - this should not happen")
+        logger.error("Account already exists - this should not happen")
       else:
         self.accounts.append(a)
         self.db.add_account(a)
@@ -79,7 +80,7 @@ class DBData:
     try:
       a = self.find_account_by_urn(urn)
       if a is None:
-        logging.error("Account does not exist - this should not happen")
+        logger.error("Account does not exist - this should not happen")
       else:
         if d.device_id not in [dev.device_id for dev in a.devices]:
           a.devices.append(d)
@@ -95,7 +96,7 @@ class DBData:
     try:
       if self.config is not None:
         # Not possible to update for the moment
-        logging.error("Config already exists - this should not happen")
+        logger.error("Config already exists - this should not happen")
       else:
         self.db.store_config(conf)
 
