@@ -64,7 +64,7 @@ class FFAuth(APICall):
 
   def parse(self, reply):
     return (reply is not None and "success" in reply)
-    
+
 ###################################
 class InitLicense(APICall):
   def __init__(self, operator, acc):
@@ -123,8 +123,8 @@ class Fulfillment(APICall):
     if ff_reply is None:
       return (None, None, None)
 
-    if 'error' in ff_reply:
-      error = get_error(ff_reply)
+    error = tree_root.get('data')
+    if error:
       logger.error(error)
       return None, None, None
 
@@ -156,7 +156,7 @@ class Activate(APICall):
     add_subelement(xml, "clientLocale", "en") # TODO: is it useful to set the real locale ?
     add_subelement(xml, "clientVersion", "ADE WIN 9,0,1131,27")
     add_subelement(xml, "nonce", utils.make_nonce())
-    add_subelement(xml, "expiration", utils.get_expiration_date()) 
+    add_subelement(xml, "expiration", utils.get_expiration_date())
     add_subelement(xml, "user", self.acc.urn)
 
     local_device = self.acc.get_device('local')
@@ -171,7 +171,7 @@ class Activate(APICall):
 
     tree_root = etree.fromstring(reply)
     self.device.device_id = tree_root.find("{http://ns.adobe.com/adept}device").text
-    return reply  
+    return reply
 
 ###################################
 class ActivationInit(APICall):
@@ -243,8 +243,9 @@ class SignInDirect(APICall):
     if reply is None:
       return False, None, None, None, None
 
-    if 'error' in reply:
-      error = get_error(reply)
+    tree_root = etree.fromstring(reply)
+    error = tree_root.get('data')
+    if error:
       logger.error(error)
       return False, None, None, None, None
 
