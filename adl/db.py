@@ -35,23 +35,30 @@ class DBData:
       logging.exception("Exception occurred during db load !")
     self.db.disconnect()
 
-  def set_current_account(self, account_urn):
+  def set_current_account(self, iaccount):
     self.db.connect()
 
     try:
-      if self.find_account_by_urn(account_urn) is None:
-        logger.error("Unknown user")
+      # Find urn when login email is defined
+      if '@' in iaccount:
+        a = self.find_account_by_sign(iaccount)
+      if 'urn:' in iaccount:
+        a = self.find_account_by_urn(iaccount)
+
+      if a is None:
+        logger.error("Unknown user: {}".format(iaccount))
       else:
-        self.config.current_user = account_urn
-        self.db.update_current_user(account_urn)
+        self.config.current_user = a.urn
+        self.db.update_current_user(a.urn)
+        logger.error("Switched to user: {}".format(a.sign_id))
     except Exception:
       logging.exception("Exception occurred when setting current user !")
 
     self.db.disconnect()
-  
+
   def add_account(self, a):
     self.db.connect()
-    
+
     try:
       if self.find_account_by_urn(a.urn) is not None:
         logger.error("Account already exists - this should not happen")
@@ -65,7 +72,7 @@ class DBData:
 
   def delete_account(self, a):
     self.db.connect()
-    
+
     try:
       self.accounts.remove(a)
       self.db.delete_account(a)
@@ -73,10 +80,10 @@ class DBData:
       logging.exception("Exception occurred when deleting account !")
 
     self.db.disconnect()
-    
+
   def add_device(self, urn, d):
     self.db.connect()
-    
+
     try:
       a = self.find_account_by_urn(urn)
       if a is None:
@@ -155,7 +162,7 @@ class DB:
                   "authentication_certificate": "text"
                 }
               }
-  
+
   def __init__(self):
     self.db_path = "{}/.adl".format(os.environ["HOME"])
     self.db_file = 'adl.db'
@@ -265,9 +272,9 @@ class DB:
   def add_account(self, a):
     c = self.connector.cursor()
 
-    ph = (a.urn, 
-          a.sign_id, 
-          a.sign_method, 
+    ph = (a.urn,
+          a.sign_id,
+          a.sign_method,
           a.auth_key[1],
           a.auth_key[0],
           a.license_key[1],
@@ -292,7 +299,7 @@ class DB:
     c = self.connector.cursor()
 
     dph = (account_urn,
-           d.device_key.decode('ascii'), # Base64 
+           d.device_key.decode('ascii'), # Base64
            d.device_id,
            d.fingerprint,
            d.name,
@@ -308,4 +315,3 @@ class DB:
     c.execute("update configuration set default_user=?", (account_urn,))
 
     self.connector.commit()
- 
